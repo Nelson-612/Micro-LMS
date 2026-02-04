@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual env
+.venv/
+venv/
+
+# Env vars
+.env
+
+# DB files (usually don't commit)
+*.db
+*.sqlite3
