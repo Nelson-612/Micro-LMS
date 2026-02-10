@@ -6,6 +6,8 @@ class AssignmentCreate(BaseModel):
     title: str
     description: Optional[str] = None
     due_at: Optional[datetime] = None
+    max_score: float
+
 
 class AssignmentRead(BaseModel):
     id: int
@@ -13,6 +15,7 @@ class AssignmentRead(BaseModel):
     title: str
     description: Optional[str]
     due_at: Optional[datetime]
+    max_score: float
     created_at: datetime
 
     class Config:

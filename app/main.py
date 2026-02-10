@@ -1,13 +1,13 @@
 from fastapi import FastAPI
 
+from app.db.init_db import init_db
+
 from app.routers.auth import router as auth_router
 from app.routers.admin import router as admin_router
 from app.routers.courses import router as courses_router
 from app.routers.enrollments import router as enrollments_router
 from app.routers.assignments import router as assignments_router
 from app.routers.submissions import router as submissions_router
-
-from app.db.init_db import init_db
 
 app = FastAPI(title="Micro LMS")
 

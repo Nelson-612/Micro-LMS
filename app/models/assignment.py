@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, func
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, func, Float
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
@@ -12,6 +12,8 @@ class Assignment(Base):
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     due_at = Column(DateTime(timezone=True), nullable=True)
+
+    max_score = Column(Float, nullable=False, server_default="100")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
