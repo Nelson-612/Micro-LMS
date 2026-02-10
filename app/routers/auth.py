@@ -8,6 +8,7 @@ from app.models.user import User
 from app.schemas.auth import LoginRequest
 from app.schemas.token import Token
 from app.schemas.user import UserCreate, UserRead
+from app.core.current_user import get_current_user
 
 router = APIRouter()
 
@@ -75,7 +76,6 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         "token_type": "bearer",
     }
 
-from app.core.current_user import get_current_user
 
 @router.get("/me", response_model=UserRead)
 def me(current_user: User = Depends(get_current_user)):

@@ -19,7 +19,6 @@ from app.schemas.gradebook_summary import GradebookStudentSummary
 from app.schemas.assignment_stats import AssignmentStatsRow
 
 from app.schemas.dashboard import CourseDashboardRow
-from sqlalchemy import func, case
 
 from datetime import datetime, timezone
 
