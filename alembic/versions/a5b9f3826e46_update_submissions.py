@@ -5,12 +5,12 @@ Revises: a0f5e6614d92
 Create Date: 2026-02-09 16:36:06.097238
 
 """
+
 from typing import Sequence, Union
 
-
 # revision identifiers, used by Alembic.
-revision: str = 'a5b9f3826e46'
-down_revision: Union[str, Sequence[str], None] = 'a0f5e6614d92'
+revision: str = "a5b9f3826e46"
+down_revision: Union[str, Sequence[str], None] = "a0f5e6614d92"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

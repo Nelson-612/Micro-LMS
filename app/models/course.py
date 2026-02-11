@@ -1,8 +1,8 @@
 from sqlalchemy import String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base_class import Base
-from sqlalchemy.orm import relationship
+
 
 class Course(Base):
     __tablename__ = "courses"
@@ -12,6 +12,10 @@ class Course(Base):
     description: Mapped[str | None] = mapped_column(Text)
     instructor_id: Mapped[int] = mapped_column(nullable=False, index=True)
 
-    enrollments = relationship("Enrollment", back_populates="course", cascade="all, delete-orphan")
+    enrollments = relationship(
+        "Enrollment", back_populates="course", cascade="all, delete-orphan"
+    )
 
-    assignments = relationship("Assignment", back_populates="course", cascade="all, delete-orphan")
+    assignments = relationship(
+        "Assignment", back_populates="course", cascade="all, delete-orphan"
+    )

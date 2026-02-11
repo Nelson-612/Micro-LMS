@@ -1,21 +1,19 @@
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.main import app
 from app.core.deps import get_db
 from app.core.security import hash_password
 from app.db.base import Base
-
-from app.models.user import User
+from app.main import app
+from app.models.assignment import Assignment
 from app.models.course import Course
 from app.models.enrollment import Enrollment
-from app.models.assignment import Assignment
-
+from app.models.user import User
 
 TEST_DB_FILE = "test_micro_lms.db"
 TEST_DB_URL = f"sqlite:///./{TEST_DB_FILE}"

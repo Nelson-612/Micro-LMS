@@ -2,9 +2,9 @@ import os
 import sys
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from alembic import context
 from app.db.base import Base
 
 # Ensure project root is on sys.path so "app.*" imports work when running Alembic

@@ -1,17 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
 from datetime import datetime, timezone
 
-from app.core.deps import get_db
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import and_
+from sqlalchemy.orm import Session
+
 from app.core.current_user import get_current_user
+from app.core.deps import get_db
 from app.core.permissions import require_instructor
 from app.models.assignment import Assignment
 from app.models.course import Course
 from app.models.enrollment import Enrollment
 from app.models.submission import Submission
 from app.models.user import User
-from app.schemas.submission import SubmissionCreate, SubmissionRead, SubmissionGradeUpdate
+from app.schemas.submission import (
+    SubmissionCreate,
+    SubmissionGradeUpdate,
+    SubmissionRead,
+)
 
 router = APIRouter()
 
@@ -63,7 +68,12 @@ def submit_assignment(
     # allow resubmission: update existing submission if it exists
     existing = (
         db.query(Submission)
-        .filter(and_(Submission.assignment_id == assignment_id, Submission.student_id == me.id))
+        .filter(
+            and_(
+                Submission.assignment_id == assignment_id,
+                Submission.student_id == me.id,
+            )
+        )
         .first()
     )
 
@@ -145,7 +155,9 @@ def grade_submission(
 
     course = db.query(Course).filter(Course.id == assignment.course_id).first()
     if not course or course.instructor_id != instructor.id:
-        raise HTTPException(status_code=403, detail="Only the course instructor can grade")
+        raise HTTPException(
+            status_code=403, detail="Only the course instructor can grade"
+        )
 
     if payload.score < 0 or payload.score > assignment.max_score:
         raise HTTPException(

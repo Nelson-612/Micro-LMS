@@ -1,15 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-from app.db.session import get_db
-from app.models.enrollment import Enrollment
-from app.models.course import Course
-from app.schemas.enrollment import EnrollmentCreate, EnrollmentOut
 from app.core.current_user import get_current_user  # adjust if needed
+from app.db.session import get_db
+from app.models.course import Course
+from app.models.enrollment import Enrollment
 from app.models.user import User
+from app.schemas.enrollment import EnrollmentCreate, EnrollmentOut
 
 router = APIRouter()
+
 
 @router.post("", response_model=EnrollmentOut, status_code=status.HTTP_201_CREATED)
 def enroll_me(

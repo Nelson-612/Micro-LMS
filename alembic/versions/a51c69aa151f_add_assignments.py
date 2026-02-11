@@ -5,12 +5,12 @@ Revises: c607b00de799
 Create Date: 2026-02-02 12:35:45.945239
 
 """
+
 from typing import Sequence, Union
 
-
 # revision identifiers, used by Alembic.
-revision: str = 'a51c69aa151f'
-down_revision: Union[str, Sequence[str], None] = 'c607b00de799'
+revision: str = "a51c69aa151f"
+down_revision: Union[str, Sequence[str], None] = "c607b00de799"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

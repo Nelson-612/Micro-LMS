@@ -3,7 +3,7 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.core.auth import oauth2_scheme
-from app.core.config import SECRET_KEY, ALGORITHM
+from app.core.config import ALGORITHM, SECRET_KEY
 from app.core.deps import get_db
 from app.models.user import User
 

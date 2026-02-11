@@ -1,15 +1,15 @@
 """add enrollments
 
 Revision ID: c607b00de799
-Revises: 
+Revises:
 Create Date: 2026-02-02 11:58:46.005148
 
 """
+
 from typing import Sequence, Union
 
-
 # revision identifiers, used by Alembic.
-revision: str = 'c607b00de799'
+revision: str = "c607b00de799"
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

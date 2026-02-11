@@ -1,5 +1,7 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import and_
+from sqlalchemy import and_, case, func
 from sqlalchemy.orm import Session
 
 from app.core.current_user import get_current_user
@@ -10,17 +12,11 @@ from app.models.course import Course
 from app.models.enrollment import Enrollment
 from app.models.submission import Submission
 from app.models.user import User
-from app.schemas.course import CourseCreate, CourseRead
-from app.schemas.gradebook import GradebookRow
-
-from sqlalchemy import func, case
-from app.schemas.gradebook_summary import GradebookStudentSummary
-
 from app.schemas.assignment_stats import AssignmentStatsRow
-
+from app.schemas.course import CourseCreate, CourseRead
 from app.schemas.dashboard import CourseDashboardRow
-
-from datetime import datetime, timezone
+from app.schemas.gradebook import GradebookRow
+from app.schemas.gradebook_summary import GradebookStudentSummary
 
 router = APIRouter()
 
@@ -124,7 +120,10 @@ def course_gradebook(
 
     return result
 
-@router.get("/{course_id}/gradebook/summary", response_model=list[GradebookStudentSummary])
+
+@router.get(
+    "/{course_id}/gradebook/summary", response_model=list[GradebookStudentSummary]
+)
 def gradebook_summary(
     course_id: int,
     db: Session = Depends(get_db),
@@ -141,13 +140,10 @@ def gradebook_summary(
         db.query(
             User.id.label("student_id"),
             User.email.label("student_email"),
-
             func.count(Assignment.id).label("total_assignments"),
-
             func.sum(case((Submission.id.is_(None), 1), else_=0)).label("missing"),
             func.sum(case((Submission.id.is_not(None), 1), else_=0)).label("submitted"),
             func.sum(case((Submission.grade.is_not(None), 1), else_=0)).label("graded"),
-
             func.avg(Submission.grade).label("average_grade"),
         )
         .join(Enrollment, Enrollment.student_id == User.id)
@@ -182,7 +178,10 @@ def gradebook_summary(
         )
     return result
 
-@router.get("/{course_id}/gradebook/assignments", response_model=list[AssignmentStatsRow])
+
+@router.get(
+    "/{course_id}/gradebook/assignments", response_model=list[AssignmentStatsRow]
+)
 def gradebook_assignment_stats(
     course_id: int,
     db: Session = Depends(get_db),
@@ -236,6 +235,7 @@ def gradebook_assignment_stats(
 
     return result
 
+
 @router.get("/me/dashboard", response_model=list[CourseDashboardRow])
 def my_dashboard(
     db: Session = Depends(get_db),
@@ -256,9 +256,13 @@ def my_dashboard(
         agg = (
             db.query(
                 func.count(Assignment.id).label("total_assignments"),
-                func.sum(case((Submission.id.is_not(None), 1), else_=0)).label("submitted"),
+                func.sum(case((Submission.id.is_not(None), 1), else_=0)).label(
+                    "submitted"
+                ),
                 func.sum(case((Submission.id.is_(None), 1), else_=0)).label("missing"),
-                func.sum(case((Submission.grade.is_not(None), 1), else_=0)).label("graded"),
+                func.sum(case((Submission.grade.is_not(None), 1), else_=0)).label(
+                    "graded"
+                ),
                 func.avg(Submission.grade).label("average_grade"),
             )
             .select_from(Assignment)

@@ -1,4 +1,5 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy.orm import Session
 
 from app.models.assignment import Assignment
@@ -41,6 +42,7 @@ def test_deadline_blocks_late_submission(client):
 
     # force assignment 1 due date to the past in the test DB
     from tests.conftest import TestingSessionLocal  # reuse test session factory
+
     db: Session = TestingSessionLocal()
     try:
         a = db.query(Assignment).filter(Assignment.id == 1).first()

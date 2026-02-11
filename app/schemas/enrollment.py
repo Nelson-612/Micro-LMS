@@ -1,8 +1,11 @@
-from pydantic import BaseModel
 from datetime import datetime
+
+from pydantic import BaseModel
+
 
 class EnrollmentCreate(BaseModel):
     course_id: int
+
 
 class EnrollmentOut(BaseModel):
     id: int

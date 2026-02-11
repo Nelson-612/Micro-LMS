@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class AssignmentStatsRow(BaseModel):
     assignment_id: int
     assignment_title: str

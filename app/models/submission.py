@@ -1,16 +1,22 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Text, UniqueConstraint
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
+
 from app.db.base_class import Base  # adjust to your Base import
+
 
 class Submission(Base):
     __tablename__ = "submissions"
 
     __table_args__ = (
-        UniqueConstraint("assignment_id", "student_id", name="uq_submission_assignment_student"),
+        UniqueConstraint(
+            "assignment_id", "student_id", name="uq_submission_assignment_student"
+        ),
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    assignment_id = Column(Integer, ForeignKey("assignments.id"), nullable=False, index=True)
+    assignment_id = Column(
+        Integer, ForeignKey("assignments.id"), nullable=False, index=True
+    )
     student_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
     content = Column(Text, nullable=False)

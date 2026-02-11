@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_db
 from app.core.current_user import get_current_user
+from app.core.deps import get_db
 from app.core.permissions import require_instructor
 from app.models.assignment import Assignment
 from app.models.course import Course
@@ -20,7 +20,9 @@ def _ensure_course_exists(db: Session, course_id: int) -> Course:
     return course
 
 
-def _ensure_can_view_course_assignments(db: Session, course_id: int, user: User) -> None:
+def _ensure_can_view_course_assignments(
+    db: Session, course_id: int, user: User
+) -> None:
     # Instructor of the course can view
     is_instructor = (
         db.query(Course)

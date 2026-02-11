@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class GradebookStudentSummary(BaseModel):
     student_id: int
     student_email: str
