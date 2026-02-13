@@ -15,3 +15,6 @@ class GradebookRow(BaseModel):
     grade: Optional[int] = None
     feedback: Optional[str] = None
     status: str  # "missing" | "submitted" | "graded"
+
+    is_late: bool = False
+    late_by_minutes: int | None = None

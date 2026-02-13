@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import and_, case, func
 from sqlalchemy.orm import Session
 
+from app.core.config import GRACE_PERIOD_MINUTES
 from app.core.current_user import get_current_user
 from app.core.deps import get_db
 from app.core.permissions import require_instructor
@@ -19,6 +20,36 @@ from app.schemas.gradebook import GradebookRow
 from app.schemas.gradebook_summary import GradebookStudentSummary
 
 router = APIRouter()
+
+
+def _gradebook_order_by():
+    """
+    Gradebook ordering:
+    - Student email ascending
+    - due_at NULLs last (SQLite-safe)
+    - due_at ascending
+    - assignment id ascending (stable tie-break)
+    """
+    return (
+        User.email.asc(),
+        Assignment.due_at.is_(None),  # NULLs last (SQLite-safe)
+        Assignment.due_at.asc(),
+        Assignment.id.asc(),
+    )
+
+
+def _assignment_order_by():
+    """
+    Assignment ordering (no User table involved):
+    - due_at NULLs last (SQLite-safe)
+    - due_at ascending
+    - assignment id ascending
+    """
+    return (
+        Assignment.due_at.is_(None),
+        Assignment.due_at.asc(),
+        Assignment.id.asc(),
+    )
 
 
 @router.get("/", response_model=list[CourseRead])
@@ -65,6 +96,7 @@ def course_gradebook(
     db: Session = Depends(get_db),
     instructor: User = Depends(require_instructor),
 ):
+    # verify course + ownership
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -77,8 +109,9 @@ def course_gradebook(
             User.email.label("student_email"),
             Assignment.id.label("assignment_id"),
             Assignment.title.label("assignment_title"),
+            Assignment.due_at.label("due_at"),
             Submission.submitted_at,
-            Submission.grade,
+            Submission.score.label("grade"),
             Submission.feedback,
         )
         .join(Enrollment, Enrollment.student_id == User.id)
@@ -91,12 +124,11 @@ def course_gradebook(
             ),
         )
         .filter(Enrollment.course_id == course_id)
-        # optional:
-        # .order_by(User.id, Assignment.id)
+        .order_by(*_gradebook_order_by())
         .all()
     )
 
-    result = []
+    result: list[dict] = []
     for r in rows:
         if r.submitted_at is None:
             status_val = "missing"
@@ -104,6 +136,28 @@ def course_gradebook(
             status_val = "submitted"
         else:
             status_val = "graded"
+
+        # compute late flags for gradebook display
+        is_late = False
+        late_by_minutes = None
+
+        if r.submitted_at is not None and r.due_at is not None:
+            due = r.due_at
+            submitted = r.submitted_at
+
+            # SQLite often returns naive datetimes; treat as UTC
+            if due.tzinfo is None:
+                due = due.replace(tzinfo=timezone.utc)
+            if submitted.tzinfo is None:
+                submitted = submitted.replace(tzinfo=timezone.utc)
+
+            late_minutes = int((submitted - due).total_seconds() // 60)
+
+            if late_minutes > 0:
+                late_by_minutes = late_minutes
+                # only mark "late" if beyond grace
+                if late_minutes > GRACE_PERIOD_MINUTES:
+                    is_late = True
 
         result.append(
             {
@@ -115,15 +169,109 @@ def course_gradebook(
                 "grade": r.grade,
                 "feedback": r.feedback,
                 "status": status_val,
+                "is_late": is_late,
+                "late_by_minutes": late_by_minutes,
             }
         )
 
     return result
 
 
-@router.get(
-    "/{course_id}/gradebook/summary", response_model=list[GradebookStudentSummary]
-)
+# ✅ Option A: student sees only THEIR rows
+@router.get("/{course_id}/gradebook/me", response_model=list[GradebookRow])
+def my_course_gradebook(
+    course_id: int,
+    db: Session = Depends(get_db),
+    me: User = Depends(get_current_user),
+):
+    # 1) course exists?
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # 2) enrolled?
+    enrolled = (
+        db.query(Enrollment)
+        .filter(
+            Enrollment.course_id == course_id,
+            Enrollment.student_id == me.id,
+        )
+        .first()
+    )
+    if not enrolled:
+        raise HTTPException(status_code=403, detail="Not enrolled in this course")
+
+    # 3) assignments in this course + this student's submission (if any)
+    rows = (
+        db.query(
+            Assignment.id.label("assignment_id"),
+            Assignment.title.label("assignment_title"),
+            Assignment.due_at.label("due_at"),
+            Submission.submitted_at,
+            Submission.score.label("grade"),
+            Submission.feedback,
+        )
+        .select_from(Assignment)
+        .outerjoin(
+            Submission,
+            and_(
+                Submission.assignment_id == Assignment.id,
+                Submission.student_id == me.id,
+            ),
+        )
+        .filter(Assignment.course_id == course_id)
+        .order_by(*_assignment_order_by())
+        .all()
+    )
+
+    result: list[dict] = []
+    for r in rows:
+        if r.submitted_at is None:
+            status_val = "missing"
+        elif r.grade is None:
+            status_val = "submitted"
+        else:
+            status_val = "graded"
+
+        # compute late flags
+        is_late = False
+        late_by_minutes = None
+
+        if r.submitted_at is not None and r.due_at is not None:
+            due = r.due_at
+            submitted = r.submitted_at
+
+            if due.tzinfo is None:
+                due = due.replace(tzinfo=timezone.utc)
+            if submitted.tzinfo is None:
+                submitted = submitted.replace(tzinfo=timezone.utc)
+
+            late_minutes = int((submitted - due).total_seconds() // 60)
+
+            if late_minutes > 0:
+                late_by_minutes = late_minutes
+                if late_minutes > GRACE_PERIOD_MINUTES:
+                    is_late = True
+
+        result.append(
+            {
+                "student_id": me.id,
+                "student_email": me.email,
+                "assignment_id": r.assignment_id,
+                "assignment_title": r.assignment_title,
+                "submitted_at": r.submitted_at,
+                "grade": r.grade,
+                "feedback": r.feedback,
+                "status": status_val,
+                "is_late": is_late,
+                "late_by_minutes": late_by_minutes,
+            }
+        )
+
+    return result
+
+
+@router.get("/{course_id}/gradebook/summary", response_model=list[GradebookStudentSummary])
 def gradebook_summary(
     course_id: int,
     db: Session = Depends(get_db),
@@ -135,7 +283,6 @@ def gradebook_summary(
     if course.instructor_id != instructor.id:
         raise HTTPException(status_code=403, detail="Not course instructor")
 
-    # One row per student, aggregated across assignments
     rows = (
         db.query(
             User.id.label("student_id"),
@@ -143,8 +290,8 @@ def gradebook_summary(
             func.count(Assignment.id).label("total_assignments"),
             func.sum(case((Submission.id.is_(None), 1), else_=0)).label("missing"),
             func.sum(case((Submission.id.is_not(None), 1), else_=0)).label("submitted"),
-            func.sum(case((Submission.grade.is_not(None), 1), else_=0)).label("graded"),
-            func.avg(Submission.grade).label("average_grade"),
+            func.sum(case((Submission.score.is_not(None), 1), else_=0)).label("graded"),
+            func.avg(Submission.score).label("average_grade"),
         )
         .join(Enrollment, Enrollment.student_id == User.id)
         .join(Assignment, Assignment.course_id == Enrollment.course_id)
@@ -157,31 +304,28 @@ def gradebook_summary(
         )
         .filter(Enrollment.course_id == course_id)
         .group_by(User.id, User.email)
-        .order_by(User.id)
+        .order_by(User.email.asc())
         .all()
     )
 
-    # Convert avg to float (SQLite may return Decimal/None)
-    result = []
+    result: list[dict] = []
     for r in rows:
         avg = float(r.average_grade) if r.average_grade is not None else None
         result.append(
             {
                 "student_id": r.student_id,
                 "student_email": r.student_email,
-                "total_assignments": r.total_assignments,
-                "missing": r.missing,
-                "submitted": r.submitted,
-                "graded": r.graded,
+                "total_assignments": int(r.total_assignments or 0),
+                "missing": int(r.missing or 0),
+                "submitted": int(r.submitted or 0),
+                "graded": int(r.graded or 0),
                 "average_grade": avg,
             }
         )
     return result
 
 
-@router.get(
-    "/{course_id}/gradebook/assignments", response_model=list[AssignmentStatsRow]
-)
+@router.get("/{course_id}/gradebook/assignments", response_model=list[AssignmentStatsRow])
 def gradebook_assignment_stats(
     course_id: int,
     db: Session = Depends(get_db),
@@ -193,39 +337,39 @@ def gradebook_assignment_stats(
     if course.instructor_id != instructor.id:
         raise HTTPException(status_code=403, detail="Not course instructor")
 
-    total_students_subq = (
+    total_students = (
         db.query(func.count(Enrollment.id))
         .filter(Enrollment.course_id == course_id)
         .scalar()
-    )
+    ) or 0
 
     rows = (
         db.query(
             Assignment.id.label("assignment_id"),
             Assignment.title.label("assignment_title"),
             func.count(Submission.id).label("submitted"),
-            func.sum(case((Submission.grade.is_not(None), 1), else_=0)).label("graded"),
-            func.avg(Submission.grade).label("average_grade"),
+            func.sum(case((Submission.score.is_not(None), 1), else_=0)).label("graded"),
+            func.avg(Submission.score).label("average_grade"),
         )
         .filter(Assignment.course_id == course_id)
         .outerjoin(Submission, Submission.assignment_id == Assignment.id)
         .group_by(Assignment.id, Assignment.title)
-        .order_by(Assignment.id)
+        .order_by(Assignment.id.asc())
         .all()
     )
 
-    result = []
+    result: list[dict] = []
     for r in rows:
         submitted = int(r.submitted or 0)
         graded = int(r.graded or 0)
-        missing = int(total_students_subq - submitted)
+        missing = int(total_students - submitted)
         avg = float(r.average_grade) if r.average_grade is not None else None
 
         result.append(
             {
                 "assignment_id": r.assignment_id,
                 "assignment_title": r.assignment_title,
-                "total_students": int(total_students_subq),
+                "total_students": int(total_students),
                 "submitted": submitted,
                 "graded": graded,
                 "missing": missing,
@@ -241,7 +385,6 @@ def my_dashboard(
     db: Session = Depends(get_db),
     me: User = Depends(get_current_user),
 ):
-    # courses the student is enrolled in
     courses = (
         db.query(Course)
         .join(Enrollment, Enrollment.course_id == Course.id)
@@ -249,10 +392,8 @@ def my_dashboard(
         .all()
     )
 
-    result = []
-
+    result: list[dict] = []
     for c in courses:
-        # aggregate counts for this student in this course
         agg = (
             db.query(
                 func.count(Assignment.id).label("total_assignments"),
@@ -260,10 +401,10 @@ def my_dashboard(
                     "submitted"
                 ),
                 func.sum(case((Submission.id.is_(None), 1), else_=0)).label("missing"),
-                func.sum(case((Submission.grade.is_not(None), 1), else_=0)).label(
+                func.sum(case((Submission.score.is_not(None), 1), else_=0)).label(
                     "graded"
                 ),
-                func.avg(Submission.grade).label("average_grade"),
+                func.avg(Submission.score).label("average_grade"),
             )
             .select_from(Assignment)
             .outerjoin(
@@ -302,11 +443,9 @@ def my_dashboard(
 
         # overdue flag for next due assignment
         now = datetime.now(timezone.utc)
-
         next_due_is_overdue = False
         if next_due and next_due.due_at:
             due = next_due.due_at
-            # SQLite often returns naive datetimes; treat as UTC for now
             if due.tzinfo is None:
                 due = due.replace(tzinfo=timezone.utc)
             next_due_is_overdue = due < now

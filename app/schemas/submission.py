@@ -18,6 +18,10 @@ class SubmissionRead(BaseModel):
     feedback: Optional[str] = None
     graded_at: Optional[datetime] = None
 
+    # NEW computed fields
+    is_late: bool = False
+    late_by_minutes: Optional[int] = None
+
     class Config:
         from_attributes = True
 
