@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class InstructorCourseStats(BaseModel):
     course_id: int
     course_title: str

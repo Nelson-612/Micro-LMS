@@ -14,7 +14,11 @@ from app.models.course import Course
 from app.models.enrollment import Enrollment
 from app.models.submission import Submission
 from app.models.user import User
-from app.schemas.submission import SubmissionCreate, SubmissionGradeUpdate, SubmissionRead
+from app.schemas.submission import (
+    SubmissionCreate,
+    SubmissionGradeUpdate,
+    SubmissionRead,
+)
 
 router = APIRouter()
 
@@ -96,7 +100,9 @@ def submit_assignment(
     now = datetime.now(timezone.utc)
 
     # ✅ Late detection using the SAME policy (grace window included)
-    is_late, late_by_minutes, _days_late, _mult = _late_penalty_multiplier(assignment, now)
+    is_late, late_by_minutes, _days_late, _mult = _late_penalty_multiplier(
+        assignment, now
+    )
 
     # allow resubmission: update existing submission if it exists
     existing = (
@@ -177,7 +183,9 @@ def list_submissions_for_assignment(
 
     # attach computed fields for response (uses submission time)
     for s in subs:
-        is_late, late_by_minutes, _days_late, _mult = _late_penalty_multiplier(assignment, s.submitted_at)
+        is_late, late_by_minutes, _days_late, _mult = _late_penalty_multiplier(
+            assignment, s.submitted_at
+        )
         s.is_late = is_late
         s.late_by_minutes = late_by_minutes
 
@@ -204,7 +212,9 @@ def grade_submission(
 
     course = db.query(Course).filter(Course.id == assignment.course_id).first()
     if not course or course.instructor_id != instructor.id:
-        raise HTTPException(status_code=403, detail="Only the course instructor can grade")
+        raise HTTPException(
+            status_code=403, detail="Only the course instructor can grade"
+        )
 
     if payload.score < 0 or payload.score > assignment.max_score:
         raise HTTPException(
@@ -231,7 +241,8 @@ def grade_submission(
         penalty_pct = int(round(capped_deduction * 100))
         note = (
             f"Late penalty applied: -{penalty_pct}% "
-            f"({days_late} day(s) late, grace {GRACE_PERIOD_MINUTES} min, cap {int(LATE_PENALTY_MAX*100)}%)."
+            f"({days_late} day(s) late, grace {GRACE_PERIOD_MINUTES} min, "
+            f"cap {int(LATE_PENALTY_MAX * 100)}%)."
         )
 
     if payload.feedback and note:

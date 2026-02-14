@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from app.core.deps import get_db
 from app.core.permissions import require_instructor
-from app.models.user import User
+from app.models.assignment import Assignment
 from app.models.course import Course
 from app.models.enrollment import Enrollment
-from app.models.assignment import Assignment
 from app.models.submission import Submission
+from app.models.user import User
 from app.schemas.instructor_dashboard import InstructorCourseStats
 
 router = APIRouter(tags=["instructor"])

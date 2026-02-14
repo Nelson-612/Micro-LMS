@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.core.config import GRACE_PERIOD_MINUTES
 from app.models.assignment import Assignment
 
 
@@ -37,7 +38,7 @@ def test_submit_and_resubmit_updates_same_row(client):
     assert body2["content"] == "second"
 
 
-def test_deadline_blocks_late_submission(client):
+def test_late_submission_is_allowed_and_marked_late(client):
     student = login(client, "student1@example.com", "password123")
 
     # force assignment 1 due date to the past in the test DB
@@ -57,5 +58,11 @@ def test_deadline_blocks_late_submission(client):
         headers=auth_header(student),
         json={"content": "late"},
     )
-    assert r.status_code == 400, r.text
-    assert r.json()["detail"] == "Assignment is past due"
+
+    # ✅ new policy: late submissions allowed
+    assert r.status_code == 201, r.text
+
+    body = r.json()
+    assert body["is_late"] is True
+    assert body["late_by_minutes"] is not None
+    assert body["late_by_minutes"] > GRACE_PERIOD_MINUTES

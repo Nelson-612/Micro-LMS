@@ -271,7 +271,9 @@ def my_course_gradebook(
     return result
 
 
-@router.get("/{course_id}/gradebook/summary", response_model=list[GradebookStudentSummary])
+@router.get(
+    "/{course_id}/gradebook/summary", response_model=list[GradebookStudentSummary]
+)
 def gradebook_summary(
     course_id: int,
     db: Session = Depends(get_db),
@@ -325,7 +327,9 @@ def gradebook_summary(
     return result
 
 
-@router.get("/{course_id}/gradebook/assignments", response_model=list[AssignmentStatsRow])
+@router.get(
+    "/{course_id}/gradebook/assignments", response_model=list[AssignmentStatsRow]
+)
 def gradebook_assignment_stats(
     course_id: int,
     db: Session = Depends(get_db),
